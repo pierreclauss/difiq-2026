@@ -391,7 +391,54 @@ partir duquel il est raisonnable de penser que les extrêmes suivent une
 loi GPD. Cela se fait grâce au mean-excess plot : le seuil optimal est
 la valeur à partir de laquelle la tendance est croissante.
 
+``` r
+library(evir)
+
+layout(matrix(1:4,2,2))
+
+invisible(daily_returns %>%
+            filter(symbol == '^FCHI') %>%
+            reframe(meplot(-dreturns[dreturns < 0])))
+
+invisible(daily_returns %>%
+            filter(symbol == '^IXIC') %>%
+            reframe(meplot(-dreturns[dreturns < 0])))
+
+invisible(daily_returns %>%
+            filter(symbol == '^N225') %>%
+            reframe(meplot(-dreturns[dreturns < 0])))
+
+invisible(daily_returns %>%
+            filter(symbol == '^MXX') %>%
+            reframe(meplot(-dreturns[dreturns < 0])))
+```
+
 ![](VaR_files/figure-gfm/var%20TVE-1.png)<!-- -->
+
+``` r
+VaR_TVE <- function(data,
+                    alpha,
+                    bloc = 21,
+                    seuil = 0.01)
+{
+  # VaR GEV
+  g1 <- gev(-data, bloc)
+  alphaGEV <- 1 - bloc * alpha
+  GEV <-
+    -qgev(alphaGEV, g1$par.ests["xi"], g1$par.ests["mu"], g1$par.ests["sigma"])
+  GEV <- percent(GEV, 0.01)
+  
+  # VaR GPD
+  g2 <- gpd(-data, seuil)
+  p <- length(g2$data) / length(data)
+  GPD <- -qgpd(1 - alpha / p, g2$par.ests["xi"], seuil, g2$par.ests["beta"])
+  GPD <- percent(GPD, 0.01)
+  
+  tibble(
+    GEV = GEV, 
+    GPD = GPD)
+}
+```
 
 Voici ci-dessous les VaR TVE demandées dans *l’exercice 2.1* pour les
 différents indices avec alpha = 1%.
