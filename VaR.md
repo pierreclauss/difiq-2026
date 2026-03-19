@@ -170,23 +170,27 @@ stylisé très important des rentabilités d’indices de marché, à savoir la
 leptokurticité de leur densité.
 
 ``` r
+library(moments)
+
 daily_returns %>%
   group_by(symbol) %>%
-  summarise(moyenne = mean(dreturns),
-            ecartype = sd(dreturns),
+  reframe(moyenne = mean(dreturns),
+            volatilite = sd(dreturns) * sqrt(252),
             nombre = n(),
             min = min(dreturns),
-            max = max(dreturns)
+            max = max(dreturns),
+            sk = skewness(dreturns),
+            kurt = kurtosis(dreturns)
   )
 ```
 
-    ## # A tibble: 4 × 6
-    ##   symbol  moyenne ecartype nombre    min   max
-    ##   <chr>     <dbl>    <dbl>  <int>  <dbl> <dbl>
-    ## 1 ^FCHI  0.000272   0.0133   8686 -0.123 0.112
-    ## 2 ^IXIC  0.000534   0.0148   8600 -0.123 0.142
-    ## 3 ^MXX   0.000552   0.0139   8561 -0.133 0.129
-    ## 4 ^N225  0.000215   0.0146   8380 -0.124 0.142
+    ## # A tibble: 4 × 8
+    ##   symbol  moyenne volatilite nombre    min   max      sk  kurt
+    ##   <chr>     <dbl>      <dbl>  <int>  <dbl> <dbl>   <dbl> <dbl>
+    ## 1 ^FCHI  0.000272      0.212   8686 -0.123 0.112 -0.0479  8.98
+    ## 2 ^IXIC  0.000534      0.235   8600 -0.123 0.142  0.0231  9.96
+    ## 3 ^MXX   0.000552      0.220   8561 -0.133 0.129  0.166   9.89
+    ## 4 ^N225  0.000215      0.232   8380 -0.124 0.142 -0.0780  8.96
 
 ``` r
 daily_returns %>%
@@ -238,89 +242,6 @@ paramétriques (Gaussienne, Skew Student, GEV et GPD).
 ### 2.1 Résolution de *l’exercice 1.1* du cours
 
 <!-- Ci-dessous, je vous propose un premier tuto pour calculer la VaR Historique du CAC 40 : -->
-
-``` r
-cac40 <- as.matrix(na.omit(table_returns[,1]))
-quantile(cac40, probs = c(0.01, 0.001))
-```
-
-    ##          1%        0.1% 
-    ## -0.03879266 -0.06329090
-
-``` r
-# VaR Historique et Gaussienne - Option 1
-daily_returns %>%
-  group_by(symbol) %>%
-  summarise(Histo = quantile(dreturns, c(0.01, 0.001)),
-            Gauss = mean(dreturns) + sd(dreturns) * qnorm(c(0.01, 0.001), 0, 1))
-```
-
-    ## # A tibble: 8 × 3
-    ## # Groups:   symbol [4]
-    ##   symbol   Histo   Gauss
-    ##   <chr>    <dbl>   <dbl>
-    ## 1 ^FCHI  -0.0388 -0.0308
-    ## 2 ^FCHI  -0.0633 -0.0409
-    ## 3 ^IXIC  -0.0409 -0.0339
-    ## 4 ^IXIC  -0.0725 -0.0451
-    ## 5 ^MXX   -0.0382 -0.0317
-    ## 6 ^MXX   -0.0641 -0.0423
-    ## 7 ^N225  -0.0387 -0.0338
-    ## 8 ^N225  -0.0719 -0.0449
-
-``` r
-# VaR Historique et Gaussienne - Option 2
-# pour le CAC 40
-cac40 <- as.matrix(na.omit(table_returns[,1]))
-quantile(cac40, probs = c(0.01, 0.001))
-```
-
-    ##          1%        0.1% 
-    ## -0.03879266 -0.06329090
-
-``` r
-mean(cac40) + sd(cac40) * qnorm(c(0.01, 0.001), 0, 1)
-```
-
-    ## [1] -0.03075328 -0.04094082
-
-``` r
-# pour les 4 indices en même temps
-table_returns %>%
-  apply(2, quantile, probs = c(0.01, 0.001), na.rm = T)
-```
-
-    ##            ^FCHI       ^IXIC       ^N225        ^MXX
-    ## 1%   -0.03879266 -0.04088223 -0.03874542 -0.03821780
-    ## 0.1% -0.06329090 -0.07254020 -0.07188053 -0.06410145
-
-``` r
-table_returns %>%
-  apply(2, function(x) mean(x, na.rm = T) + sd(x, na.rm = T) * qnorm(c(0.01, 0.001), 0, 1))
-```
-
-    ##            ^FCHI       ^IXIC       ^N225        ^MXX
-    ## [1,] -0.03075328 -0.03385136 -0.03378026 -0.03167992
-    ## [2,] -0.04094082 -0.04514231 -0.04494299 -0.04226352
-
-``` r
-# Estimation de la VaR skew Student pour le CAC 40 - option 1
-library(sn)
-esti <- daily_returns %>%
-  filter(symbol == '^FCHI') %>%
-  reframe(st.mple(y = dreturns)$dp)
-qst(c(0.01, 0.001), esti[[1, 2]], esti[[2, 2]], esti[[3, 2]], esti[[4, 2]])
-```
-
-    ## [1] -0.04201171 -0.10247637
-
-``` r
-# Estimation de la VaR skew Student pour le CAC 40 - option 2
-esti <- st.mple(y = cac40)
-qst(c(0.01, 0.001), esti$dp["xi"], esti$dp["omega"], esti$dp["alpha"], esti$dp["nu"])
-```
-
-    ## [1] -0.04201171 -0.10247637
 
 ``` r
 library(scales)
