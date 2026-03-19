@@ -49,7 +49,7 @@ symbols <- c("^FCHI", "^IXIC", "^N225", "^MXX")
 stock_prices <- symbols %>%
   tq_get(get  = "stock.prices",
          from = "1992-01-01",
-         to   = "2025-03-01") %>%
+         to   = "2026-03-01") %>%
   group_by(symbol)
 
 (stock_prices %>% slice(1, n()))
@@ -60,13 +60,13 @@ stock_prices <- symbols %>%
     ##   symbol date         open   high    low  close     volume adjusted
     ##   <chr>  <date>      <dbl>  <dbl>  <dbl>  <dbl>      <dbl>    <dbl>
     ## 1 ^FCHI  1992-01-02  1755.  1766.  1747.  1750.          0    1750.
-    ## 2 ^FCHI  2025-02-28  8047.  8112.  8031.  8112.  132221800    8112.
+    ## 2 ^FCHI  2026-02-27  8609.  8639.  8554.  8581.  109240900    8581.
     ## 3 ^IXIC  1992-01-02   580.   586.   576.   586.  181380000     586.
-    ## 4 ^IXIC  2025-02-28 18477. 18861. 18373. 18847. 8247520000   18847.
+    ## 4 ^IXIC  2026-02-27 22615. 22736. 22538. 22668. 9552610000   22668.
     ## 5 ^MXX   1992-01-02  1445.  1445.  1445.  1445.          0    1445.
-    ## 6 ^MXX   2025-02-28 52665. 52893. 52235. 52326.  484856000   52326.
+    ## 6 ^MXX   2026-02-27 71326. 71890. 70925. 71406.  359876400   71406.
     ## 7 ^N225  1992-01-06 23031. 23802. 23031. 23801.          0   23801.
-    ## 8 ^N225  2025-02-28 37853. 37925. 36840. 37156.  191600000   37156.
+    ## 8 ^N225  2026-02-27 58606. 58924. 58131. 58850.  192400000   58850.
 
 ### 1.2 Démêlage (wrangling en anglais)
 
@@ -94,16 +94,16 @@ daily_returns <- stock_prices %>%
 
     ## # A tibble: 8 × 3
     ## # Groups:   symbol [4]
-    ##   symbol date       dreturns
-    ##   <chr>  <date>        <dbl>
-    ## 1 ^FCHI  1992-01-02  0      
-    ## 2 ^FCHI  2025-02-28  0.00112
-    ## 3 ^IXIC  1992-01-02  0      
-    ## 4 ^IXIC  2025-02-28  0.0163 
-    ## 5 ^MXX   1992-01-02  0      
-    ## 6 ^MXX   2025-02-28 -0.00536
-    ## 7 ^N225  1992-01-06  0      
-    ## 8 ^N225  2025-02-28 -0.0288
+    ##   symbol date        dreturns
+    ##   <chr>  <date>         <dbl>
+    ## 1 ^FCHI  1992-01-02  0       
+    ## 2 ^FCHI  2026-02-27 -0.00466 
+    ## 3 ^IXIC  1992-01-02  0       
+    ## 4 ^IXIC  2026-02-27 -0.00919 
+    ## 5 ^MXX   1992-01-02  0       
+    ## 6 ^MXX   2026-02-27  0.000220
+    ## 7 ^N225  1992-01-06  0       
+    ## 8 ^N225  2026-02-27  0.00165
 
 ``` r
 table_returns <-
@@ -114,7 +114,7 @@ table_returns <-
 (table_returns)
 ```
 
-    ## # A tibble: 8,627 × 4
+    ## # A tibble: 8,886 × 4
     ##     `^FCHI`  `^IXIC`  `^N225`    `^MXX`
     ##       <dbl>    <dbl>    <dbl>     <dbl>
     ##  1  0        0       NA        0       
@@ -127,7 +127,7 @@ table_returns <-
     ##  8 -0.00713  0.00313 -0.0306   0.00669 
     ##  9  0.0107   0.0131   0.00361  0.0191  
     ## 10  0.0162   0.00810 NA        0.000703
-    ## # ℹ 8,617 more rows
+    ## # ℹ 8,876 more rows
 
 Il y a quelques données manquantes que je devrai gérer dans la partie
 modélisation.
@@ -183,10 +183,10 @@ daily_returns %>%
     ## # A tibble: 4 × 6
     ##   symbol  moyenne ecartype nombre    min   max
     ##   <chr>     <dbl>    <dbl>  <int>  <dbl> <dbl>
-    ## 1 ^FCHI  0.000272   0.0134   8432 -0.123 0.112
-    ## 2 ^IXIC  0.000525   0.0148   8350 -0.123 0.142
-    ## 3 ^MXX   0.000529   0.0140   8311 -0.133 0.129
-    ## 4 ^N225  0.000161   0.0146   8137 -0.124 0.142
+    ## 1 ^FCHI  0.000272   0.0133   8686 -0.123 0.112
+    ## 2 ^IXIC  0.000534   0.0148   8600 -0.123 0.142
+    ## 3 ^MXX   0.000552   0.0139   8561 -0.133 0.129
+    ## 4 ^N225  0.000215   0.0146   8380 -0.124 0.142
 
 ``` r
 daily_returns %>%
@@ -239,25 +239,108 @@ paramétriques (Gaussienne, Skew Student, GEV et GPD).
 
 <!-- Ci-dessous, je vous propose un premier tuto pour calculer la VaR Historique du CAC 40 : -->
 
+``` r
+cac40 <- as.matrix(na.omit(table_returns[,1]))
+quantile(cac40, probs = c(0.01, 0.001))
+```
+
+    ##          1%        0.1% 
+    ## -0.03879266 -0.06329090
+
+``` r
+# VaR Historique et Gaussienne - Option 1
+daily_returns %>%
+  group_by(symbol) %>%
+  summarise(Histo = quantile(dreturns, c(0.01, 0.001)),
+            Gauss = mean(dreturns) + sd(dreturns) * qnorm(c(0.01, 0.001), 0, 1))
+```
+
+    ## # A tibble: 8 × 3
+    ## # Groups:   symbol [4]
+    ##   symbol   Histo   Gauss
+    ##   <chr>    <dbl>   <dbl>
+    ## 1 ^FCHI  -0.0388 -0.0308
+    ## 2 ^FCHI  -0.0633 -0.0409
+    ## 3 ^IXIC  -0.0409 -0.0339
+    ## 4 ^IXIC  -0.0725 -0.0451
+    ## 5 ^MXX   -0.0382 -0.0317
+    ## 6 ^MXX   -0.0641 -0.0423
+    ## 7 ^N225  -0.0387 -0.0338
+    ## 8 ^N225  -0.0719 -0.0449
+
+``` r
+# VaR Historique et Gaussienne - Option 2
+# pour le CAC 40
+cac40 <- as.matrix(na.omit(table_returns[,1]))
+quantile(cac40, probs = c(0.01, 0.001))
+```
+
+    ##          1%        0.1% 
+    ## -0.03879266 -0.06329090
+
+``` r
+mean(cac40) + sd(cac40) * qnorm(c(0.01, 0.001), 0, 1)
+```
+
+    ## [1] -0.03075328 -0.04094082
+
+``` r
+# pour les 4 indices en même temps
+table_returns %>%
+  apply(2, quantile, probs = c(0.01, 0.001), na.rm = T)
+```
+
+    ##            ^FCHI       ^IXIC       ^N225        ^MXX
+    ## 1%   -0.03879266 -0.04088223 -0.03874542 -0.03821780
+    ## 0.1% -0.06329090 -0.07254020 -0.07188053 -0.06410145
+
+``` r
+table_returns %>%
+  apply(2, function(x) mean(x, na.rm = T) + sd(x, na.rm = T) * qnorm(c(0.01, 0.001), 0, 1))
+```
+
+    ##            ^FCHI       ^IXIC       ^N225        ^MXX
+    ## [1,] -0.03075328 -0.03385136 -0.03378026 -0.03167992
+    ## [2,] -0.04094082 -0.04514231 -0.04494299 -0.04226352
+
+``` r
+# Estimation de la VaR skew Student pour le CAC 40 - option 1
+library(sn)
+esti <- daily_returns %>%
+  filter(symbol == '^FCHI') %>%
+  reframe(st.mple(y = dreturns)$dp)
+qst(c(0.01, 0.001), esti[[1, 2]], esti[[2, 2]], esti[[3, 2]], esti[[4, 2]])
+```
+
+    ## [1] -0.04201171 -0.10247637
+
+``` r
+# Estimation de la VaR skew Student pour le CAC 40 - option 2
+esti <- st.mple(y = cac40)
+qst(c(0.01, 0.001), esti$dp["xi"], esti$dp["omega"], esti$dp["alpha"], esti$dp["nu"])
+```
+
+    ## [1] -0.04201171 -0.10247637
+
 Voici ci-dessous les VaR demandées dans *l’exercice 1.1* pour les
 différents indices avec alpha = 1%.
 
 | symbol | Historique | Gaussienne | Skew_Student |
 |:------:|:----------:|:----------:|:------------:|
-| ^FCHI  |   -3.89%   |   -3.10%   |    -4.34%    |
-| ^IXIC  |   -4.09%   |   -3.38%   |    -7.29%    |
-|  ^MXX  |   -3.86%   |   -3.19%   |    -4.00%    |
-| ^N225  |   -3.87%   |   -3.38%   |    -5.43%    |
+| ^FCHI  |   -3.88%   |   -3.08%   |    -4.20%    |
+| ^IXIC  |   -4.09%   |   -3.39%   |    -7.33%    |
+|  ^MXX  |   -3.82%   |   -3.17%   |    -3.79%    |
+| ^N225  |   -3.87%   |   -3.38%   |    -5.24%    |
 
 Voici ci-dessous les VaR demandées dans *l’exercice 1.1* pour les
 différents indices avec alpha = 0.1%.
 
 | symbol | Historique | Gaussienne | Skew_Student |
 |:------:|:----------:|:----------:|:------------:|
-| ^FCHI  |   -6.35%   |   -4.12%   |   -10.55%    |
-| ^IXIC  |   -7.27%   |   -4.51%   |   -28.53%    |
-|  ^MXX  |   -6.42%   |   -4.26%   |    -9.24%    |
-| ^N225  |   -6.97%   |   -4.49%   |   -14.82%    |
+| ^FCHI  |   -6.33%   |   -4.09%   |   -10.25%    |
+| ^IXIC  |   -7.25%   |   -4.51%   |   -28.61%    |
+|  ^MXX  |   -6.41%   |   -4.23%   |    -8.04%    |
+| ^N225  |   -7.19%   |   -4.49%   |   -13.96%    |
 
 ### 2.2 Résolution de *l’exercice 2.1* du cours
 
@@ -273,17 +356,17 @@ différents indices avec alpha = 1%.
 
 | symbol |  GEV   |  GPD   |
 |:------:|:------:|:------:|
-| ^FCHI  | -3.06% | -3.80% |
-| ^IXIC  | -3.23% | -4.12% |
-|  ^MXX  | -3.06% | -3.84% |
-| ^N225  | -3.40% | -3.87% |
+| ^FCHI  | -3.05% | -3.79% |
+| ^IXIC  | -3.24% | -4.13% |
+|  ^MXX  | -3.04% | -3.82% |
+| ^N225  | -3.42% | -3.87% |
 
 Voici ci-dessous les VaR TVE demandées dans *l’exercice 2.1* pour les
 différents indices avec alpha = 0.1%.
 
 | symbol |  GEV   |  GPD   |
 |:------:|:------:|:------:|
-| ^FCHI  | -6.01% | -6.61% |
-| ^IXIC  | -6.90% | -7.37% |
-|  ^MXX  | -6.70% | -6.89% |
-| ^N225  | -6.55% | -7.40% |
+| ^FCHI  | -5.95% | -6.58% |
+| ^IXIC  | -6.88% | -7.36% |
+|  ^MXX  | -6.67% | -6.86% |
+| ^N225  | -6.42% | -7.43% |
