@@ -322,8 +322,43 @@ qst(c(0.01, 0.001), esti$dp["xi"], esti$dp["omega"], esti$dp["alpha"], esti$dp["
 
     ## [1] -0.04201171 -0.10247637
 
+``` r
+library(scales)
+library(sn)
+
+VaR_classiques <- function(data, alpha)
+{
+  #VaR Historique
+  Hist <- quantile(data, probs = alpha)
+  Hist <- percent(Hist, 0.01)
+  
+  # VaR Gaussienne
+  Gauss <- mean(data) + sd(data) * qnorm(alpha, 0, 1)
+  Gauss <- percent(Gauss, 0.01)
+  
+  # VaR skew Student
+  esti <- st.mple(y = data)
+  Skt <- qst(alpha, esti$dp["xi"], esti$dp["omega"], esti$dp["alpha"], esti$dp["nu"])
+  Skt <- percent(Skt, 0.01)
+  
+  tibble(
+    Historique = Hist,
+    Gaussienne = Gauss,
+    Skew_Student = Skt
+  )
+}
+```
+
 Voici ci-dessous les VaR demandées dans *l’exercice 1.1* pour les
 différents indices avec alpha = 1%.
+
+``` r
+library(pander)
+VaR_1 <- daily_returns %>%
+  group_by(symbol) %>%
+  reframe(VaR_classiques(dreturns, alpha = 0.01))
+pander(VaR_1)
+```
 
 | symbol | Historique | Gaussienne | Skew_Student |
 |:------:|:----------:|:----------:|:------------:|
@@ -334,6 +369,13 @@ différents indices avec alpha = 1%.
 
 Voici ci-dessous les VaR demandées dans *l’exercice 1.1* pour les
 différents indices avec alpha = 0.1%.
+
+``` r
+VaR_01 <- daily_returns %>%
+  group_by(symbol) %>%
+  reframe(VaR_classiques(dreturns, alpha = 0.001))
+pander(VaR_01)
+```
 
 | symbol | Historique | Gaussienne | Skew_Student |
 |:------:|:----------:|:----------:|:------------:|
